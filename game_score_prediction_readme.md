@@ -54,6 +54,44 @@ This project aims to build a machine learning model for predicting user scores f
 ## **2. Feature Engineering and Data Preprocessing**
 The dataset used contains reviews and sentiment data from critics and users, along with information about the platform and game titles. The key feature engineering steps include the creation of **ratio features** and the conversion of categorical sentiment data into usable inputs for machine learning models.
 
+1. [Sentiment Imputation](#sentiment-imputation)
+2. [Data Validation](#data-validation)
+
+### Sentiment Imputation
+The script handles missing values in several columns by applying fallback logic, which prioritizes filling in values from related columns and sets default values when necessary:
+
+- **Critic Review Count**: Filled with `User Review Count`, or set to 0 if missing.
+- **Critic Positive Count**: Filled with `User Positive Count`, or set to 0 if missing.
+- **Critic Score**: Filled with `User Score * 10` if missing, or set to 0.
+- **User Score**: Filled with `Critic Score / 10` if missing, or set to 0.
+
+Additionally, the sentiment for both users and critics is imputed based on available data:
+- **User Sentiment**: If user sentiment is unknown, it falls back to critic sentiment. If both are unknown, it uses the critic score to determine sentiment based on predefined thresholds:
+  - `>= 90`: 'Universal acclaim'
+  - `>= 75`: 'Generally favorable'
+  - `>= 50`: 'Mixed or average'
+  - `>= 20`: 'Generally unfavorable'
+  - Otherwise: 'Overwhelming dislike'
+  
+- **Critic Sentiment**: If critic sentiment is unknown, it falls back to user sentiment. If both are unknown, it uses the user score to determine sentiment based on predefined thresholds:
+  - `>= 9`: 'Universal acclaim'
+  - `>= 7.5`: 'Generally favorable'
+  - `>= 5`: 'Mixed or average'
+  - `>= 2`: 'Generally unfavorable'
+  - Otherwise: 'Overwhelming dislike'
+
+### Data Validation
+The script performs a few basic data quality checks to ensure data integrity:
+
+1. **Missing Values**: It checks for missing values in the dataset before and after imputation, giving insights into which columns have missing data.
+2. **Score Distribution**: The range of user and critic scores is printed to ensure there are no outlier values.
+3. **Missing Sentiment**: The proportion of 'Unknown' sentiments is shown to check how well the imputation strategy worked.
+4. **Column Information**: It strips any leading/trailing spaces in column names and checks the data types of each column.
+
+### Sample Output:
+- Updated sentiment distribution with counts for user and critic sentiment.
+- Data quality reports showing missing values before and after processing, score distributions, and sentiment analysis.
+
 ### **Ratio Features:**
 Two key ratio features were created:
 - **Critic_Approval_Ratio:** The ratio of positive critic reviews to total critic reviews.
@@ -105,6 +143,8 @@ preprocessor = ColumnTransformer(
 **Training and Testing Split:**
 - The dataset is split into training and testing sets using a train_test_split function (80% for training, 20% for testing).
 - Temporal cross-validation is used, ensuring that the training data always precedes the testing data to simulate realistic recommendation scenarios.
+- Processed shape: (35413, 12)
+- X_train shape: (28330, 12) X_test shape: (7083, 12)
 
 
 The following machine learning models were trained:
@@ -123,7 +163,8 @@ The following machine learning models were trained:
 
 
 ### **Hyperparameter Tuning:**
-Hyperparameter grids for **GridSearchCV**:
+Hyperparameter grids for **GridSearchCV**: for three different machine learning models: **Random Forest**, **Neural Network (MLP)**, and **K-Nearest Neighbors (KNN)**. The goal is to find the best set of hyperparameters for each model that optimizes performance on the training dataset.
+
 ```python
 param_grids = {
     'Random Forest': {'n_estimators': [100, 200], 'max_depth': [None, 10]},
@@ -131,6 +172,51 @@ param_grids = {
     'KNN': {'n_neighbors': [3, 5], 'weights': ['uniform', 'distance']}
 }
 ```
+
+### 1. **Random Forest Regressor** (`RandomForestRegressor`):
+The following hyperparameters are tuned:
+- `n_estimators`: The number of trees in the forest. We are trying values `[100, 200]`.
+- `max_depth`: The maximum depth of the tree. We test both `None` (no limit) and a depth of `10`.
+
+```python
+param_grids = {
+    'Random Forest': {'n_estimators': [100, 200], 'max_depth': [None, 10]},
+}
+```
+
+- **Model Used**: `RandomForestRegressor`
+- **Cross-validation**: 5-fold cross-validation
+- **Best Parameters**: The best parameters are selected based on the grid search results and are printed to the console.
+
+### 2. **Neural Network** (`MLPRegressor`):
+The following hyperparameters are tuned:
+- `hidden_layer_sizes`: The number of neurons in each hidden layer. We try two different configurations: `(50,)` and `(100,)`.
+- `alpha`: L2 regularization term. We test values `[0.0001, 0.001]`.
+
+```python
+param_grids = {
+    'Neural Network': {'hidden_layer_sizes': [(50,), (100,)], 'alpha': [0.0001, 0.001]},
+}
+```
+
+- **Model Used**: `MLPRegressor` (Multi-layer Perceptron Regressor)
+- **Cross-validation**: 5-fold cross-validation
+- **Best Parameters**: The best parameters are selected based on the grid search results and are printed to the console.
+
+### 3. **K-Nearest Neighbors** (`KNeighborsRegressor`):
+The following hyperparameters are tuned:
+- `n_neighbors`: The number of neighbors to use for prediction. We test values `[3, 5]`.
+- `weights`: The weighting function used in prediction. We try both `'uniform'` (all neighbors have equal weight) and `'distance'` (closer neighbors have higher weight).
+
+```python
+param_grids = {
+    'KNN': {'n_neighbors': [3, 5], 'weights': ['uniform', 'distance']},
+}
+```
+
+- **Model Used**: `KNeighborsRegressor`
+- **Cross-validation**: 5-fold cross-validation
+- **Best Parameters**: The best parameters are selected based on the grid search results and are printed to the console.
 
 ### **Model Training and Evaluation:**
 For each model:
@@ -140,43 +226,17 @@ For each model:
 ## **4. Evaluation Results**
 The **final results** after evaluation on the test set showed the following:
 
-#### **Random Forest**
-- **Cross-Validation RMSE:** 8.92
-- **Cross-Validation R²:** 0.75
-- **Test RMSE:** 9.03
-- **Test MAE:** 6.78
-- **Test R²:** 0.72
-- **NDCG@10:** 0.85
-- 
-
-#### **Neural Network (MLP)**
-- **Cross-Validation RMSE:** 9.12
-- **Cross-Validation R²:** 0.74
-- **Test RMSE:** 9.25
-- **Test R²:** 0.70
-
-#### **K-Nearest Neighbors (KNN)**
-- **Cross-Validation RMSE:** 10.22
-- **Cross-Validation R²:** 0.68
-- **Test RMSE:** 10.47
-- **Test R²:** 0.64
-
-#### **Transformer-based Neural Network**
-- **Cross-Validation RMSE:** 9.50
-- **Cross-Validation R²:** 0.73
-- **Test RMSE:** 9.62
-- **Test R²:** 0.69
-
 - **Random Forest** was the best-performing model with the lowest **RMSE** (0.456) and highest **R²** (0.978).
 - **KNN** performed the worst on the test set with a **R²** of 0.954 and **RMSE** of 0.661.
 
 ```python
-# Final Model Comparison
-Model                RMSE (Test)    MAE (Test)    R² (Test)    NDCG@10
-Random Forest        0.456551       0.277838       0.978104      0.990501
-Neural Network       0.457669       0.294121       0.977996      0.986911
-KNN                  0.661495       0.337270       0.954033      0.985603
-Transformer          0.534409       0.327426       0.969999      0.985959
+
+Final Model Comparison (Test Set):
+            Model  RMSE (Test)  MAE (Test)  R² (Test)   NDCG@10
+0   Random Forest     0.461958    0.286607   0.977579  0.991595
+1  Neural Network     0.464687    0.300675   0.977313  0.985284
+2             KNN     0.494412    0.306819   0.974318  0.985076
+3     Transformer     0.496454    0.325225   0.974106  0.988830
 ```
 
 ## **5. Model Recommendations**
@@ -184,12 +244,12 @@ Transformer          0.534409       0.327426       0.969999      0.985959
 The model's **top 5 recommendations** were based on the predicted scores for each game:
 ```python
 Top Recommendations:
-                                                Title  ... Predicted_Score
-16248                                   The Escapists  ...        9.742976
-9754          Jumpgate: The Reconstruction Initiative  ...        9.742976
-25824                                        Whiplash  ...        9.716132
-17842                                Kayak VR: Mirage  ...        9.678989
-29191  Tiebreak: The Official Game of the ATP and WTA  ...        9.678989
+                                         Title        Platform  Predicted_Score
+16248                            The Escapists  ios-iphoneipad         9.604445
+9754   Jumpgate: The Reconstruction Initiative              PC         9.604445
+14719                          Visions of Mana   Xbox Series X         9.586389
+34042                   Cooking Mama: Cookstar   PlayStation 4         9.582155
+4621            Metro Exodus: Enhanced Edition        Xbox One         9.582155
 ```
 
 ## **6. Explanation Methods**
@@ -261,3 +321,9 @@ cat__Critic Sentiment_Mixed or average    0.000137
 - **Enhancing Interpretability Tools**: Improve SHAP and LIME explanations to be even more comprehensive and understandable for end users.
 ### **10. Final Thoughts**
 This project successfully builds a machine learning pipeline for predicting game scores, evaluates multiple models, and generates recommendations. It demonstrates how to handle data preprocessing, model selection, evaluation, and interpretation, making it useful for those interested in applying machine learning to similar types of data.
+
+### **11. Requirments**
+
+ ```bash
+pip install -r requirements.txt
+ ```

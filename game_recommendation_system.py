@@ -399,14 +399,19 @@ print(final_results_df)
 def recommend_games(model, n=5, diversity=0.1):
     # Generate predictions on the full processed dataset.
     df['Predicted_Score'] = model.predict(X_processed)
-    # Sort and apply a simple platform diversity filter.
+
+    # Sort values based on the predicted score
+    df_sorted = df.sort_values('Predicted_Score', ascending=False)
+
+    # Apply platform diversity filter (add diversity within the top recommendations)
     recommendations = (
-        df.sort_values('Predicted_Score', ascending=False)
-        .groupby('Platform')
-        .head(int(n * (1 + diversity)))
-        .head(n)
+        df_sorted.groupby('Platform')
+        .head(int(n * (1 + diversity)))  # Get top 'n' games with diversity
+        .head(n)  # Select top 'n' after considering diversity
     )
+
     return recommendations[['Title', 'Platform', 'Predicted_Score']]
+
 
 # Example: Get recommendations from the best Random Forest model.
 best_model = best_models['Random Forest']
@@ -429,108 +434,3 @@ lime_explainer = lime.lime_tabular.LimeTabularExplainer(
 exp = lime_explainer.explain_instance(X_test[0], best_models['Random Forest'].predict, num_features=10)
 exp.show_in_notebook()
 
-# ========== README FILE CREATION ==========
-# Extract performance metrics for each model.
-rf_metrics = next(result for result in final_results if result['Model'] == 'Random Forest')
-nn_metrics = next(result for result in final_results if result['Model'] == 'Neural Network')
-knn_metrics = next(result for result in final_results if result['Model'] == 'KNN')
-trans_metrics = next(result for result in final_results if result['Model'] == 'Transformer')
-
-readme_content = """
-# Video Game Recommendation System
-
-## Overview
-This project implements a video game recommendation system that predicts user scores using multiple machine learning regression models. It leverages advanced feature engineering, cross-validation, hyperparameter tuning, and interpretability techniques to provide actionable recommendations.
-
-## Inputs
-- **Raw Data CSV**: Contains the following columns:
-  - **Title**: Name of the video game.
-  - **Platform**: Platform on which the game is available.
-  - **Release_Date**: Date when the game was released.
-  - **Critic_Score**: Average score given by critics.
-  - **User_Score**: Average score given by users (target).
-  - **Critic_Sentiment**: Sentiment derived from critic reviews.
-  - **User_Sentiment**: Sentiment derived from user reviews.
-  - **Critic_Review_Count**: Total critic reviews count.
-  - **User_Review_Count**: Total user reviews count.
-  - **Critic_Positive, Critic_Neutral, Critic_Negative**: Breakdown of critic opinions.
-  - **User_Positive, User_Neutral, User_Negative**: Breakdown of user opinions.
-
-## Outputs
-- **Trained Models**: Models trained for predicting the User Score.
-- **Evaluation Metrics**: Metrics such as RMSE, MAE, R², and NDCG@10.
-- **Recommendations**: Top game recommendations based on predicted scores.
-- **Explanations**: Global and local model interpretability using SHAP and LIME.
-
-## Function Explanations
-- **map_sentiment(row)**:
-    - *Purpose*: Imputes missing User Sentiment values using Critic Sentiment or derived sentiment from Critic Score.
-    - *Input*: A row from the dataset.
-    - *Output*: A sentiment label.
-- **build_transformer_model(input_shape)**:
-    - *Purpose*: Constructs a transformer-based neural network for regression.
-    - *Input*: The number of features in the processed input data.
-    - *Output*: A compiled Keras model that outputs a single prediction.
-- **recommend_games(model, n, diversity)**:
-    - *Purpose*: Generates top N game recommendations while enforcing platform diversity.
-    - *Input*: A trained model, the number of recommendations (n), and a diversity parameter.
-    - *Output*: A DataFrame with game titles, platforms, and predicted scores.
-
-## Workflow and Expected Results
-1. **Data Preparation**: Missing values are filled and features are preprocessed.
-2. **Feature Engineering**: New ratio features (e.g., approval ratios) are computed.
-3. **Model Training**: Multiple models are trained using cross-validation and hyperparameter tuning.
-4. **Evaluation**: Models are evaluated using RMSE, MAE, R², and NDCG@10. For example, the Random Forest model achieved:
-   - **Test RMSE**: {rf_rmse_test}
-   - **Test MAE**: {rf_mae_test}
-   - **Test R²**: {rf_r2_test}
-   - **NDCG@10**: {rf_ndcg_test}
-5. **Recommendations**: The best model is used to generate game recommendations.
-6. **Interpretability**: SHAP and LIME are used to explain model predictions.
-
-## Aims
-- Develop a robust video game recommendation system.
-- Provide accurate predictions and actionable recommendations.
-- Ensure model interpretability for stakeholder trust and decision support.
-
-## Future Improvements
-- Enhance data cleaning and preprocessing techniques.
-- Experiment with additional feature engineering and model ensembling.
-- Integrate real-time data processing for dynamic recommendations.
-- Incorporate personalized recommendations based on user preferences.
-
-## Conclusion
-This system demonstrates the effective application of machine learning for video game recommendations by combining predictive accuracy with interpretability.
-"""
-
-readme_content = readme_content.format(
-    rf_rmse_cv=next(result['RMSE (CV)'] for result in cv_results if result['Model'] == 'Random Forest'),
-    rf_r2_cv=next(result['R² (CV)'] for result in cv_results if result['Model'] == 'Random Forest'),
-    rf_rmse_test=rf_metrics['RMSE (Test)'],
-    rf_mae_test=rf_metrics['MAE (Test)'],
-    rf_r2_test=rf_metrics['R² (Test)'],
-    rf_ndcg_test=rf_metrics['NDCG@10'],
-    nn_rmse_cv=next(result['RMSE (CV)'] for result in cv_results if result['Model'] == 'Neural Network'),
-    nn_r2_cv=next(result['R² (CV)'] for result in cv_results if result['Model'] == 'Neural Network'),
-    nn_rmse_test=nn_metrics['RMSE (Test)'],
-    nn_r2_test=nn_metrics['R² (Test)'],
-    knn_rmse_cv=next(result['RMSE (CV)'] for result in cv_results if result['Model'] == 'KNN'),
-    knn_r2_cv=next(result['R² (CV)'] for result in cv_results if result['Model'] == 'KNN'),
-    knn_rmse_test=knn_metrics['RMSE (Test)'],
-    knn_r2_test=knn_metrics['R² (Test)'],
-    trans_rmse_cv=next(result['RMSE (CV)'] for result in cv_results if result['Model'] == 'Transformer'),
-    trans_r2_cv=next(result['R² (CV)'] for result in cv_results if result['Model'] == 'Transformer'),
-    trans_rmse_test=trans_metrics['RMSE (Test)'],
-    trans_r2_test=trans_metrics['R² (Test)'],
-    best_model_name="Random Forest"
-)
-
-file_path = 'README.md'
-if os.path.exists(file_path):
-    with open(file_path, 'a') as f:
-        f.write("\n\n" + readme_content)
-else:
-    with open(file_path, 'w') as f:
-        f.write(readme_content)
-
-print("README generated successfully!")
