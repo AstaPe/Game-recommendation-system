@@ -23,7 +23,7 @@ This project aims to build a machine learning model for predicting user scores f
 
 - **Output:** The output includes the recommended games (based on predicted scores), the evaluation metrics of the models (RMSE, MAE, R², NDCG@10), and explanations for model predictions using SHAP and LIME.
 
-### Data Preprocessing and Feature Engineering
+## **2. Feature Engineering and Data Preprocessing**
 
 **Input Columns:**
 - 'Title': Name of the game.
@@ -51,7 +51,6 @@ This project aims to build a machine learning model for predicting user scores f
 4. **Model Evaluation:** Evaluate models using metrics like RMSE, MAE, R², and NDCG@10.
 5. **Recommendation Generation:** Based on model predictions, provide the top recommendations for users.
 
-## **2. Feature Engineering and Data Preprocessing**
 The dataset used contains reviews and sentiment data from critics and users, along with information about the platform and game titles. The key feature engineering steps include the creation of **ratio features** and the conversion of categorical sentiment data into usable inputs for machine learning models.
 
 1. [Sentiment Imputation](#sentiment-imputation)
@@ -238,11 +237,32 @@ Final Model Comparison (Test Set):
 2             KNN     0.494412    0.306819   0.974318  0.985076
 3     Transformer     0.496454    0.325225   0.974106  0.988830
 ```
+### Predictive Accuracy (RMSE & MAE)
 
+- **Random Forest** has the lowest RMSE (0.461958) and lowest MAE (0.286607), indicating it makes the smallest average prediction errors.
+- **Neural Network** follows closely but lags slightly in both metrics.
+- **KNN** and **Transformer** perform worse, with Transformer having the highest errors (RMSE: 0.496, MAE: 0.325).
+
+### Explained Variance (R²)
+
+- **Random Forest** again leads with R² = 0.9776, meaning it explains ~97.8% of the variance in the target variable.
+- Other models trail marginally (**Neural Network**: 0.9773) or more noticeably (**Transformer**: 0.9741).
+
+### Ranking Quality (NDCG@10)
+
+- **Random Forest** achieves the highest NDCG@10 (0.9916), showing superior ranking of top recommendations.
+- **Transformer** surprisingly outperforms **Neural Network** and **KNN** in ranking (NDCG@10 = 0.9888 vs. 0.9852/0.9851), despite weaker RMSE/MAE. This suggests it captures item relevance order better, even if absolute rating predictions are less accurate.
+
+### Key Insights
+
+- **Random Forest** is the best overall model across all metrics. It balances high predictive accuracy (lowest RMSE/MAE), strong explanatory power (highest R²), and excellent ranking performance (best NDCG@10).
+- **Transformer** has decent ranking capability (2nd-best NDCG@10) but struggles with precise numerical predictions, making it less suitable for applications requiring exact rating estimates.
+- **Neural Network** is a close second to **Random Forest** in accuracy but lags in ranking, while **KNN** is the weakest overall.
 ## **5. Model Recommendations**
 ### **Top Game Recommendations:**
 The model's **top 5 recommendations** were based on the predicted scores for each game:
 ```python
+
 Top Recommendations:
                                          Title        Platform  Predicted_Score
 16248                            The Escapists  ios-iphoneipad         9.604445

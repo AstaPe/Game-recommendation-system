@@ -397,6 +397,10 @@ print(final_results_df)
 
 # ========== RECOMMENDATION ==========
 def recommend_games(model, n=5, diversity=0.1):
+    # Check if 'Platform' column exists in the dataframe
+    if 'Platform' not in df.columns:
+        raise ValueError("The 'Platform' column is missing in the dataframe.")
+
     # Generate predictions on the full processed dataset.
     df['Predicted_Score'] = model.predict(X_processed)
 
@@ -410,8 +414,8 @@ def recommend_games(model, n=5, diversity=0.1):
         .head(n)  # Select top 'n' after considering diversity
     )
 
+    # Ensure 'Platform' column is included in the final recommendations
     return recommendations[['Title', 'Platform', 'Predicted_Score']]
-
 
 # Example: Get recommendations from the best Random Forest model.
 best_model = best_models['Random Forest']
